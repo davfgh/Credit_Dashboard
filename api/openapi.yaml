@@ -1,0 +1,181 @@
+openapi: 3.0.0
+info:
+  title: API de Scoring Client
+  description: |
+    Cette API permet d'effectuer des prédictions sur la fiabilité d'un client en fonction de ses caractéristiques.
+    Elle utilise un modèle de machine learning sérialisé via pickle et propose des points d'entrée pour soumettre des requêtes et obtenir des scores de risque et des explications SHAP.
+  version: 1.1.0
+
+servers:
+  - url: https://prediction-api.azurewebsites.net
+    description: Serveur local de l'API
+
+paths:
+  /predict:
+    post:
+      summary: Effectuer une prédiction de scoring client
+      description: Prend en entrée un dictionnaire JSON contenant les caractéristiques d'un client et retourne la prédiction du modèle.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PredictionRequest"
+      responses:
+        "200":
+          description: Réponse réussie avec la prédiction
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PredictionResponse"
+        "400":
+          description: Erreur de requête (features manquantes ou format incorrect)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MissingFeatureError"
+        "500":
+          description: Erreur interne du serveur
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/InternalServerError"
+
+  /shap_values:
+    get:
+      summary: Récupérer les valeurs SHAP pour un client aléatoire
+      description: Retourne les valeurs SHAP calculées pour un échantillon aléatoire du dataset de test.
+      responses:
+        "200":
+          description: Réponse réussie avec les valeurs SHAP
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SHAPResponse"
+        "500":
+          description: Erreur interne du serveur
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/InternalServerError"
+
+components:
+  schemas:
+    PredictionRequest:
+      type: object
+      properties:
+        AMT_ANNUITY:
+          type: number
+          example: 15000
+        AMT_CREDIT:
+          type: number
+          example: 200000
+        AMT_GOODS_PRICE:
+          type: number
+          example: 180000
+        CREDIT_TERM:
+          type: integer
+          example: 60
+        DAYS_BIRTH:
+          type: integer
+          example: -12000
+        DAYS_ID_PUBLISH:
+          type: integer
+          example: -3000
+        DAYS_REGISTRATION:
+          type: integer
+          example: -4000
+        EXT_SOURCE_1:
+          type: number
+          example: 0.5
+        EXT_SOURCE_2:
+          type: number
+          example: 0.7
+        EXT_SOURCE_3:
+          type: number
+          example: 0.6
+        DEBT_CREDIT_RATIO:
+          type: number
+          example: 0.3
+        ANNUITY_BIRTH_RATIO:
+          type: number
+          example: 0.02
+        ANNUITY_INCOME_PERCENT:
+          type: number
+          example: 0.1
+        CREDIT_GOODS_RATIO:
+          type: number
+          example: 1.1
+        INSTA_AMT_PAYMENT:
+          type: number
+          example: 10000
+        INSTA_NUM_INSTALMENT_VERSION:
+          type: integer
+          example: 3
+        POS_CNT_INSTALMENT_FUTURE:
+          type: integer
+          example: 2
+        PREV_CNT_PAYMENT:
+          type: number
+          example: 20
+
+    PredictionResponse:
+      type: object
+      properties:
+        prediction:
+          type: string
+          example: "Classe_0 (fiable)"
+        probability_class_1:
+          type: number
+          example: 0.120
+        probability_class_0:
+          type: number
+          example: 0.880
+        optimal_threshold:
+          type: number
+          example: 0.150
+        margin:
+          type: number
+          example: 0.000
+        lower_bound:
+          type: number
+          example: 0.150
+        upper_bound:
+          type: number
+          example: 0.150
+
+    SHAPResponse:
+      type: object
+      properties:
+        shap_values:
+          type: array
+          items:
+            type: number
+          example: [-0.05, 0.02, -0.01, 0.08, 0.03, -0.02, 0.07, -0.03, 0.01, -0.06]
+        features_names:
+          type: array
+          items:
+            type: string
+          example: ["AMT_ANNUITY", "AMT_CREDIT", "AMT_GOODS_PRICE", "DAYS_BIRTH", "EXT_SOURCE_1"]
+        sample_values:
+          type: array
+          items:
+            type: number
+          example: [15000, 200000, 180000, -12000, 0.5]
+        base_values:
+          type: number
+          example: 0.6
+
+    MissingFeatureError:
+      type: object
+      properties:
+        error:
+          type: string
+          example: "Features manquantes : ['AMT_CREDIT']"
+
+    InternalServerError:
+      type: object
+      properties:
+        error:
+          type: string
+          example: "Erreur interne du serveur"

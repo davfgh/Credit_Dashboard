@@ -1,0 +1,27 @@
+# Base de données MLflow
+mlruns.db
+
+# Ensemble du répertoire de logs MLflow
+mlruns/
+
+# Caches Python
+__pycache__/
+*.pyc
+
+# Caches Jupyter / checkpoints
+.ipynb_checkpoints/
+
+# Fichiers data CSV
+data/application_test.csv
+data/application_train.csv
+data/bureau.csv
+data/bureau_balance.csv
+data/credit_card_balance.csv
+data/HomeCredit_columns_description.csv
+data/installments_payments.csv
+data/POS_CASH_balance.csv
+data/previous_application.csv
+data/sample_submission.csv
+
+# Dépot Git
+Projet7_OpenClassrooms.git/"mlruns/" 
