@@ -35,8 +35,18 @@ jobs:
 
       # Optional: Add step to run tests here (PyTest, Django test suites, etc.)
 
-      - name: Zip artifact for deployment
-        run: zip release.zip ./* -r
+      # - name: Zip artifact for deployment
+      #   run: zip release.zip ./* -r
+
+      - name: Zip only necessary files for deployment
+        run: |
+          mkdir deploy_bundle
+          cp -r streamlit_app deploy_bundle/
+          cp -r models deploy_bundle/
+          cp -r features deploy_bundle/
+          cp requirements.txt deploy_bundle/
+          cd deploy_bundle
+          zip -r ../release.zip .
 
       - name: Upload artifact for deployment jobs
         uses: actions/upload-artifact@v4
