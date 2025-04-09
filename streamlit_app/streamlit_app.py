@@ -13,11 +13,10 @@ import warnings
 
 # 🔧 Configuration des logs
 logging.basicConfig(level=logging.DEBUG, format="DEBUG:%(message)s")
-warnings.simplefilter("always")  # Activer tous les warnings
+warnings.simplefilter("always")  # Activation des warnings
 
 # 📂 Définition des chemins
 # base_dir = "D:/Pro/OpenClassrooms/Projet_7/3_dossier_code_012025"
-# base_dir = os.path.dirname(os.path.abspath(__file__))
 base_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
 model_path = os.path.join(base_dir, "models", "lgbm_final_model.pkl")
 features_path = os.path.join(base_dir, "features", "app_test_features.csv")
@@ -69,7 +68,7 @@ def build_comparison_table(dataframe, client_data, filter_column=None, filter_va
         elif val_client > mean_val:
             pos_moy = ">"
         else:
-            pos_moy = "≈"  # approximativement égal
+            pos_moy = "≈"
 
         # Intervalle
         if lower_bound <= val_client <= upper_bound:
@@ -167,7 +166,7 @@ try:
 except Exception as e:
     st.error(f"❌ Erreur lors du chargement des fichiers : {e}")
 
-# 📌 2. Sélection du Client Aléatoire et Comparaison
+# 📌 2. Sélection du Client Aléatoire & Comparaison
 st.header("📌 2. Sélection d'un client")
 
 with st.expander("ℹ️ Modes de sélection disponibles"):
@@ -187,11 +186,9 @@ if st.session_state.get("mode") == "auto":
         - 🎲 Vous pouvez aussi sélectionner un autre client aléatoirement ou utiliser le champ ID pour une recherche ciblée.
         """)
 
-# col1, col2 = st.columns([1, 1])
 col_id, col_auto, col_manual = st.columns([1, 1, 1], vertical_alignment="bottom")
 
 # 🎲 Pré-remplir avec un client aléatoire
-
 with col_id:
     client_id_input = st.text_input("🔍 Rechercher par ID client", value="", placeholder="Entrez l'ID du client ici")
     if client_id_input:
@@ -224,7 +221,7 @@ with col_auto:
         if "shap_values_data" in st.session_state:
             del st.session_state.shap_values_data
 
-# Replir manuellement le formumaire
+# Replissage manuel du formumaire
 with col_manual:
     if st.button("🧹 Réinitialiser le formulaire (passer en mode manuel)", key="btn_manual"):
         st.session_state.mode = "manuel"
@@ -233,7 +230,7 @@ with col_manual:
         if "shap_values_data" in st.session_state:
             del st.session_state.shap_values_data
 
-# 💡 Custom CSS
+# 💡 Boutons customisés en CSS
 st.markdown("""
     <style>
     button[kind="secondary"] {
@@ -251,7 +248,7 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 try:
-    # 🔎 Filtrer les clients sans valeurs manquantes
+    # 🔎 Filtre des clients sans valeurs manquantes
     data_clean = data.dropna()
 
     if data_clean.empty:
@@ -327,7 +324,7 @@ try:
         if group_filter_selection == "DAYS_BIRTH":
             client_birth = st.session_state.input_data.get("DAYS_BIRTH", None)
             if client_birth is not None:
-                delta = 1825  # plage de +/- 1825 jours (+ ou - 5 ans)
+                delta = 1825  # plage de + ou - 5 ans
                 subset_data = subset_data[
                     (subset_data["DAYS_BIRTH"] >= client_birth - delta) &
                     (subset_data["DAYS_BIRTH"] <= client_birth + delta)
@@ -336,7 +333,7 @@ try:
         elif group_filter_selection == "AMT_CREDIT":
             client_credit = st.session_state.input_data.get("AMT_CREDIT", None)
             if client_credit is not None:
-                delta = 50000  # plage de +/- 50k
+                delta = 50000  # plage de +/- 50 000
                 subset_data = subset_data[
                     (subset_data["AMT_CREDIT"] >= client_credit - delta) &
                     (subset_data["AMT_CREDIT"] <= client_credit + delta)
@@ -435,7 +432,6 @@ st.header("📌 3. Prédiction")
 
 try:
     # 📌 Préparation des données pour la prédiction
-    # input_data = random_client[features_names].to_dict(orient='records')[0]
     input_data = st.session_state.input_data
 
     # 🔗 URL de l'API (endpoint predict)
@@ -459,7 +455,7 @@ try:
             probability_class_1 = prediction["probability_class_1"]
             score_pct = int(probability_class_1 * 100)
 
-            # Définir la couleur selon le score
+            # Définition de la couleur selon le score
             if score_pct < 40:
                 color = "green"
             elif score_pct < 70:
@@ -467,7 +463,7 @@ try:
             else:
                 color = "red"
 
-            # 📊 Affichage clair du score
+            # 📊 Affichage du score
             st.markdown("### 🎯 Score de probabilité (risque de défaut)")
 
             with st.expander("ℹ️ Qu'est-ce que ce score ?"):
@@ -513,7 +509,7 @@ try:
 
             st.markdown("<br>", unsafe_allow_html=True)
 
-            # 📌 Verdict simple
+            # 📌 Verdict
             verdict = "Classe_1 (Risqué)" if probability_class_1 >= optimal_threshold else "Classe_0 (Fiable)"
             verdict_color = "#FFCCCB" if verdict == "Classe_1 (Risqué)" else "lightgreen"
 
