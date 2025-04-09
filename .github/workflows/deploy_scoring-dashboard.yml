@@ -33,12 +33,12 @@ jobs:
       - name: Install dependencies
         run: pip install -r requirements.txt
 
-      # Optional: Add step to run tests here (PyTest, Django test suites, etc.)
+      - name: Run unit tests for dashboard with Pytest
+        run: |
+          pip install pytest
+          pytest tests/test_dashboard.py
 
-      # - name: Zip artifact for deployment
-      #   run: zip release.zip ./* -r
-
-      - name: Zip only necessary files for deployment
+      - name: Zip artifact for deployment (only necessary files)
         run: |
           mkdir deploy_bundle
           cp -r streamlit_app deploy_bundle/
