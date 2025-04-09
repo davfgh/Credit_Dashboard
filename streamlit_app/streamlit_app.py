@@ -16,7 +16,8 @@ logging.basicConfig(level=logging.DEBUG, format="DEBUG:%(message)s")
 warnings.simplefilter("always")  # Activer tous les warnings
 
 # 📂 Définition des chemins
-base_dir = "D:/Pro/OpenClassrooms/Projet_7/3_dossier_code_012025"
+# base_dir = "D:/Pro/OpenClassrooms/Projet_7/3_dossier_code_012025"
+base_dir = os.path.dirname(os.path.abspath(__file__))
 model_path = os.path.join(base_dir, "models", "lgbm_final_model.pkl")
 features_path = os.path.join(base_dir, "features", "app_test_features.csv")
 train_features_path = os.path.join(base_dir, "features", "app_train_features.csv")
