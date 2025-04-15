@@ -16,7 +16,6 @@ logging.basicConfig(level=logging.DEBUG, format="DEBUG:%(message)s")
 warnings.simplefilter("always")  # Activation des warnings
 
 # 📂 Définition des chemins
-# base_dir = "D:/Pro/OpenClassrooms/Projet_7/3_dossier_code_012025"
 base_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
 model_path = os.path.join(base_dir, "models", "lgbm_final_model.pkl")
 features_path = os.path.join(base_dir, "features", "app_test_features.csv")
@@ -36,6 +35,14 @@ if "mode" not in st.session_state:
     st.session_state.mode = "manuel"
 if "group_filter" not in st.session_state:
     st.session_state.group_filter = None
+if "trigger_selection" not in st.session_state:
+    st.session_state.trigger_selection = None  # valeurs possibles : 'id', 'random', 'manual'
+if "trigger_group_refresh" not in st.session_state:
+    st.session_state.trigger_group_refresh = False
+if "pending_group_filter" not in st.session_state:
+    st.session_state.pending_group_filter = st.session_state.group_filter
+if "group_filter_validated" not in st.session_state:
+    st.session_state.group_filter_validated = False
 
 @st.cache_data(show_spinner=False)
 def build_comparison_table(dataframe, client_data, filter_column=None, filter_value=None):
@@ -117,7 +124,6 @@ def display_group_details(filter_type, client_value, delta, subset_size=None, da
         if subset_size is not None:
             st.markdown(f"👥 **Nombre de clients dans le groupe comparé** : {subset_size:,}".replace(",", " "))
 
-
 def display_explanation():
     """
     Affiche une infobulle expliquant les colonnes du tableau de comparaison des variables client.
@@ -140,6 +146,25 @@ st.markdown(
     "<h1 style='text-align: center; color: #1F2937;'>📊 Credit Dashboard - Analyse & Décision Client</h1>",
     unsafe_allow_html=True
 )
+
+def load_selected_client(client_id, data, features_names):
+    st.session_state.selected_client = data.loc[[client_id]]
+    st.session_state.mode = "auto"
+    st.session_state.input_data = {
+        feat: float(st.session_state.selected_client[feat].values[0])
+        for feat in features_names
+    }
+    st.session_state.previous_input_data = st.session_state.input_data.copy()
+    if "shap_values_data" in st.session_state:
+        del st.session_state.shap_values_data
+
+def reload_current_client():
+    if st.session_state.selected_client is not None:
+        client_id = st.session_state.selected_client.index[0]
+        load_selected_client(client_id, data, features_names)
+        st.session_state.client_id_input = str(client_id)
+        st.success(f"✅ Données du client {client_id} actualisées.")
+
 
 # 📌 1. Chargement du Modèle et des Données
 st.header("📌 1. Chargement")
@@ -188,27 +213,25 @@ if st.session_state.get("mode") == "auto":
 
 col_id, col_auto, col_manual = st.columns([1, 1, 1], vertical_alignment="bottom")
 
-# 🎲 Pré-remplir avec un client aléatoire
+# Recherche de client par ID
 with col_id:
-    client_id_input = st.text_input("🔍 Rechercher par ID client", value="", placeholder="Entrez l'ID du client ici")
-    if client_id_input:
-        try:
-            client_id_input = int(client_id_input)
-            if client_id_input in data.index:
-                st.session_state.selected_client = data.loc[[client_id_input]]
-                st.session_state.mode = "auto"
-                st.session_state.input_data = {
-                    feat: float(st.session_state.selected_client[feat].values[0]) for feat in features_names
-                }
-                st.session_state.previous_input_data = st.session_state.input_data.copy()
-                if "shap_values_data" in st.session_state:
-                    del st.session_state.shap_values_data
-                st.success(f"✅ Client ID {client_id_input} sélectionné.")
-            else:
-                st.warning("⚠️ ID client non trouvé dans le jeu de données.")
-        except ValueError:
-            st.warning("⚠️ Veuillez entrer un ID valide (nombre entier).")
+    # 🔧 Choix de la valeur à afficher dans le champ ID
+    if "client_id_input" not in st.session_state:
+        st.session_state.client_id_input = ""
 
+    if st.session_state.get("mode") == "auto" and st.session_state.selected_client is not None:
+        client_id_display = str(st.session_state.selected_client.index[0])
+    else:
+        client_id_display = st.session_state.client_id_input
+
+    client_id_input = st.text_input(
+        "🔍 Rechercher par ID client",
+        value=client_id_display,
+        key="client_id_input",
+        placeholder="Entrez l'ID du client ici"
+    )
+
+# 🎲 Pré-remplissage avec un client aléatoire
 with col_auto:
     if st.button("🎲 Selection d'un client aléatoire", key="btn_auto"):
         data_clean = data.dropna()
@@ -220,8 +243,9 @@ with col_auto:
         st.session_state.previous_input_data = st.session_state.input_data.copy()
         if "shap_values_data" in st.session_state:
             del st.session_state.shap_values_data
+        # st.rerun()
 
-# Replissage manuel du formumaire
+# Replissage manuel du formumaire de features
 with col_manual:
     if st.button("🧹 Réinitialiser le formulaire (passer en mode manuel)", key="btn_manual"):
         st.session_state.mode = "manuel"
@@ -229,6 +253,29 @@ with col_manual:
         st.session_state.selected_client = None
         if "shap_values_data" in st.session_state:
             del st.session_state.shap_values_data
+        # st.rerun()
+
+# ➕ Nouveau bouton sous les 3 colonnes
+_, col_valider, _ = st.columns([1, 2, 1])
+with col_valider:
+    validate_client_btn = st.button("✅ Valider la selection", key="btn_validate_client")
+
+if validate_client_btn:
+    if client_id_input:  # Si un ID a été saisi, on tente de charger ce client
+        try:
+            client_id_input_int = int(client_id_input)
+            if client_id_input_int in data.index:
+                load_selected_client(client_id_input_int, data, features_names)
+                st.success(f"✅ Client ID {client_id_input_int} sélectionné et validé : vous pouvez passer à la comparaison par groupes de clients.")
+            else:
+                st.warning("⚠️ ID client non trouvé dans le jeu de données.")
+        except ValueError:
+            st.warning("⚠️ Veuillez entrer un ID valide.")
+    elif st.session_state.selected_client is not None:
+        # Aucun ID saisi mais un client est déjà sélectionné (aléatoire)
+        st.success(f"✅ Client aléatoire ID {st.session_state.selected_client.index[0]} validé.")
+    else:
+        st.warning("⚠️ Aucun client sélectionné ou saisi.")
 
 # 💡 Boutons customisés en CSS
 st.markdown("""
@@ -272,7 +319,8 @@ try:
                 unsafe_allow_html=True
             )
         else:
-            client_id_display = st.session_state.selected_client.index[0] if st.session_state.selected_client is not None else "?"
+            client_id_display = st.session_state.client_id_input if "client_id_input" in st.session_state else "?"
+            # client_id_display = st.session_state.selected_client.index[0] if st.session_state.selected_client is not None else "?"
             st.markdown(
                 f"<div style='background-color:#2C3E50; padding:10px; border-radius:8px; font-size:1.1em;'>"
                 f"👤 <strong>Mode actif : Client sélectionné (ID : {client_id_display})</strong>"
@@ -303,20 +351,47 @@ try:
         # 📊 **Comparaison aux clients semblables
         st.subheader("📊 Comparaison avec les groupes de clients")
 
-        # Selectbox
-        group_filter_selection = st.selectbox(
-            "Choisissez une variable de regroupement :",
-            [None, "DAYS_BIRTH", "AMT_CREDIT"],
-            index=[None, "DAYS_BIRTH", "AMT_CREDIT"].index(st.session_state.group_filter),
-            format_func=lambda x: "Aucun" if x is None else x,
-            key="group_filter_selector"
-        )
-        st.session_state.group_filter = group_filter_selection
+        # ✅ Choix du groupe de comparaison (stable)
+        st.markdown("### 🔧 Choix du groupe de comparaison")
+
+        group_col1, group_col2, group_col3 = st.columns([1, 1, 1])
+
+        with group_col1:
+            if st.button("Aucun", key="btn_group_none"):
+                st.session_state.group_filter = None
+                if st.session_state.mode == "auto" and st.session_state.selected_client is not None:
+                    client_id = st.session_state.selected_client.index[0]
+                    load_selected_client(client_id, data, features_names)
+
+        with group_col2:
+            if st.button("Par Âge", key="btn_group_age"):
+                st.session_state.group_filter = "DAYS_BIRTH"
+                if st.session_state.mode == "auto" and st.session_state.selected_client is not None:
+                    client_id = st.session_state.selected_client.index[0]
+                    load_selected_client(client_id, data, features_names)
+
+        with group_col3:
+            if st.button("Par Crédit", key="btn_group_credit"):
+                st.session_state.group_filter = "AMT_CREDIT"
+                if st.session_state.mode == "auto" and st.session_state.selected_client is not None:
+                    client_id = st.session_state.selected_client.index[0]
+                    load_selected_client(client_id, data, features_names)
+
+        # 📍 Toujours s'assurer que group_filter_selection est à jour
+        group_filter_selection = st.session_state.group_filter
 
         if group_filter_selection == "DAYS_BIRTH":
             st.markdown("🧓 Cette option permet de comparer un client à des clients de la **même tranche d'âge** (en années).")
         elif group_filter_selection == "AMT_CREDIT":
             st.markdown("💰 Cette option compare un client à d'autres ayant des **montants de crédit similaires**.")
+        else:
+            st.markdown("📊 Aucun regroupement spécifique sélectionné.")
+
+        group_filter_selection  = st.session_state.group_filter
+        if group_filter_selection != st.session_state.group_filter:
+            st.session_state.group_filter = group_filter_selection
+            if st.session_state.mode == "auto":
+                st.session_state.trigger_group_refresh = True
 
         # ✅ 🎯 Filtrage dynamique selon la sélection
         subset_data = data_clean.copy()  # par défaut : tous les clients
