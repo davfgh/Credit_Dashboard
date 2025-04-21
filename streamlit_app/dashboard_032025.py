@@ -109,7 +109,7 @@ def display_group_details(filter_type, client_value, delta, subset_size=None, da
         if filter_type == "DAYS_BIRTH":
             birth_min = int((client_value - delta) / -365.25)
             birth_max = int((client_value + delta) / -365.25)
-            st.markdown(f"📆 **Tranche d'âge sélectionnée** : {birth_min} - {birth_max} ans")
+            st.markdown(f"📆 **Tranche d'âge sélectionnée** : {birth_max} - {birth_min} ans")
         elif filter_type == "AMT_CREDIT":
             credit_min = round(client_value - delta)
             credit_max = round(client_value + delta)
@@ -141,13 +141,15 @@ def display_explanation():
             - ❌ : la valeur est hors de cet intervalle
         """)
 
-st.set_page_config(page_title="Credit Dashboard", layout="centered")
-st.markdown(
-    "<h1 style='text-align: center; color: #1F2937;'>📊 Credit Dashboard - Analyse & Décision Client</h1>",
-    unsafe_allow_html=True
-)
-
 def load_selected_client(client_id, data, features_names):
+    """
+    Charge un client depuis les données et initialise les valeurs dans la session.
+
+    :param client_id: ID du client à charger
+    :param data: DataFrame contenant les données clients
+    :param features_names: Liste des variables/features à charger
+    :return: Aucun (modifie l'état de session directement)
+    """
     st.session_state.selected_client = data.loc[[client_id]]
     st.session_state.mode = "auto"
     st.session_state.input_data = {
@@ -159,12 +161,22 @@ def load_selected_client(client_id, data, features_names):
         del st.session_state.shap_values_data
 
 def reload_current_client():
+    """
+    Recharge les données du client sélectionné dans l'état de session.
+
+    :return: Aucun (met à jour les données du client actif dans la session)
+    """
     if st.session_state.selected_client is not None:
         client_id = st.session_state.selected_client.index[0]
         load_selected_client(client_id, data, features_names)
         st.session_state.client_id_input = str(client_id)
         st.success(f"✅ Données du client {client_id} actualisées.")
 
+st.set_page_config(page_title="Credit Dashboard", layout="centered")
+st.markdown(
+    "<h1 style='text-align: center; color: #1F2937;'>📊 Credit Dashboard - Analyse & Décision Client</h1>",
+    unsafe_allow_html=True
+)
 
 # 📌 1. Chargement du Modèle et des Données
 st.header("📌 1. Chargement")
@@ -196,18 +208,20 @@ st.header("📌 2. Sélection d'un client")
 
 with st.expander("ℹ️ Modes de sélection disponibles"):
     st.markdown("""
-    Trois méthodes de sélection de client sont disponibles :
+    Comment fonctionne le mode de selection de données client ?
 
-    - 🔍 **Saisie d'un ID client** : entrez manuellement un identifiant pour charger un client spécifique.
+    - 🔍 **Saisie d'un ID client** : entrez manuellement un identifiant et appuyez sur **Entrée** pour charger un client spécifique.
     - 🎲 **Client aléatoire** : sélection automatique d'un client parmi les données disponibles.
     - 📝 **Saisie manuelle** : remplissage des variables sans données pré-remplies.
+    - ✅ **Valider** : confirmez le mode de sélection ou le client actuellement affiché.
     """)
 
 if st.session_state.get("mode") == "auto":
-    with st.expander("ℹ️ Informations sur le mode automatique"):
+    with st.expander("ℹ️ Vous avez déja sélectionné un client ?"):
         st.markdown("""
         - 📌 **Client sélectionné automatiquement** : les champs sont affichés en lecture seule.
-        - 🧹 Cliquez sur le bouton de droite pour passer en **saisie manuelle**.
+        - ✅ Assurez-vous d’avoir validé le mode de sélection ou le client choisi.
+        - 🧹 Cliquez sur le bouton à droite pour passer en **saisie manuelle**.
         - 🎲 Vous pouvez aussi sélectionner un autre client aléatoirement ou utiliser le champ ID pour une recherche ciblée.
         """)
 
@@ -313,16 +327,15 @@ try:
         # ✅ Affichage fusionné du mode actif
         if st.session_state.get("mode") == "manuel":
             st.markdown(
-                "<div style='background-color:#2C3E50; padding:10px; border-radius:8px; font-size:1.1em;'>"
+                "<div style='background-color:#B0BEC5; padding:10px; border-radius:8px; font-size:1.1em;'>"
                 "✍️ <strong>Mode actif : Saisie manuelle</strong>"
                 "</div>",
                 unsafe_allow_html=True
             )
         else:
             client_id_display = st.session_state.client_id_input if "client_id_input" in st.session_state else "?"
-            # client_id_display = st.session_state.selected_client.index[0] if st.session_state.selected_client is not None else "?"
             st.markdown(
-                f"<div style='background-color:#2C3E50; padding:10px; border-radius:8px; font-size:1.1em;'>"
+                f"<div style='background-color:#B0BEC5; padding:10px; border-radius:8px; font-size:1.1em;'>"
                 f"👤 <strong>Mode actif : Client sélectionné (ID : {client_id_display})</strong>"
                 "</div>",
                 unsafe_allow_html=True
