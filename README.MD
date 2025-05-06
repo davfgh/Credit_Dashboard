@@ -14,16 +14,19 @@ https://scoring-dashboard-a7ehg6bkghgvffdf.francecentral-01.azurewebsites.net
 
 > **Note** : Le démarrage de l’API n’est nécessaire **qu’en local**. En production (version déployée), elle est déjà disponible.
 
+```markdown
 1. **Démarrer l’API Flask**  
-   ```bash
-   cd api
-   python app.py
-  ```
+
+    ```bash
+    cd api
+    python app.py
+    ```
 
 2. **Lancer l’interface Streamlit**  
-   ```bash
-  cd streamlit_app
-  streamlit run dashboard_032025.py
-  ```
+
+    ```bash
+    cd streamlit_app
+    streamlit run dashboard_032025.py
+    ```
 
 **Bonne utilisation du dashboard !**
