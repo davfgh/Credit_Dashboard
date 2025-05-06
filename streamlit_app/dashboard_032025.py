@@ -515,7 +515,7 @@ try:
 except Exception as e:
     st.error(f"❌ Erreur lors de la sélection du client : {e}")
 
-# 📌 3. Prédiction et Réglage de la Zone Grise
+# 📌 3. Prédiction
 st.header("📌 3. Prédiction")
 
 try:
@@ -652,64 +652,65 @@ except Exception as e:
 # 📌 4. Feature Importance Locale (SHAP)
 st.header("📌 4. Feature Importance Locale")
 
-st.markdown(
-    "ℹ️ **Pourquoi cette analyse ?**\n"
-    "Cette section montre **les principales variables qui influencent** la prédiction du modèle **pour ce client spécifique**."
-)
-
-# ℹ️ Infobulle sur le SHAP Waterfall Plot
+with st.expander("ℹ️ **Pourquoi cette analyse ?**"):
+    st.write(
+        "Cette section montre **les principales variables qui influencent** la prédiction du modèle **pour ce client spécifique**."
+    )
 with st.expander("ℹ️ **Comment lire ce graphique ?**"):
     st.write(
-        "- 🟥 **Facteurs augmentant la probabilité d'être risqué** : Ces features poussent la prédiction vers un risque élevé.\n"
-        "- 🟦 **Facteurs réduisant le risque** : Ces features diminuent la probabilité que le client soit risqué."
+        "- 🟥 **Facteurs augmentant le risque** : ils poussent la prédiction vers un risque élevé.\n"
+        "- 🟦 **Facteurs réduisant le risque** : ils diminuent la probabilité d’être risqué."
     )
 
-# 📌 Endpoint de l'API pour récupérer les SHAP values
-# api_shap_url = "http://127.0.0.1:5000/shap_values"
-api_shap_url = "https://prediction-api.azurewebsites.net/shap_values"
-
-# 📌 Vérification et récupération des données SHAP avec mise en cache
-if "shap_values_data" not in st.session_state:
+if st.session_state.mode == "auto" and st.session_state.selected_client is not None:
+    # Préparation des données
+    input_array = np.array([st.session_state.input_data[feat] for feat in features_names]).reshape(1, -1)
     try:
-        response = requests.get(api_shap_url)
-
-        if response.status_code == 200:
-            st.session_state.shap_values_data = response.json()
-        else:
-            st.error(f"❌ Erreur API SHAP : {response.status_code}, {response.text}")
-    except requests.exceptions.RequestException as e:
-        st.error(f"❌ Erreur de connexion à l'API SHAP : {e}")
-
-# 📌 Utilisation des données SHAP en cache si disponibles
-if "shap_values_data" in st.session_state:
-    shap_data = st.session_state.shap_values_data
-
-    # 🔍 Extraction des données de l'API
-    shap_values = np.array(shap_data["shap_values"]).reshape(1, -1)  # Assurer (1, N)
-    feature_names = shap_data["features_names"]
-    sample_values = np.array(shap_data["sample_values"]).reshape(1, -1)  # Même format (1, N)
-    base_values = shap_data["base_values"]
-
-    # 📌 Vérification des dimensions après correction
-    print(f"📌 SHAP values shape : {shap_values.shape}")
-    print(f"📌 Feature names count : {len(feature_names)}")
-    print(f"📌 Sample values shape : {sample_values.shape}")
-
-    # 📌 Création d'un objet SHAP Explanation pour afficher la figure waterfall
-    explainer = shap.Explanation(
-        values=shap_values[0],
-        base_values=base_values,
-        data=sample_values[0],  # Correspondance avec les features
-        feature_names=feature_names
-    )
-
-    # 📊 Génération et affichage du Waterfall Plot
-    fig, ax = plt.subplots(figsize=(10, 8))
-    shap.waterfall_plot(explainer, max_display=11, show=False)
-    plt.title(f"Impact des principales features sur la prédiction")
-    st.pyplot(fig)
-
-    st.markdown("🔍 **Figure : SHAP Waterfall Plot des principales features**")
+        explainer = shap.TreeExplainer(model)
+        shap_exp = explainer(input_array)               # renvoie un shap.Explanation
+        shap_values = shap_exp.values                   # (1, n_features)
+        base_values = shap_exp.base_values              # scalar ou (1,)
+        # Construction de l’objetl
+        expl = shap.Explanation(
+            values=shap_values[0],
+            base_values=(base_values[0] if isinstance(base_values, (list, np.ndarray)) else base_values),
+            data=input_array[0],
+            feature_names=features_names
+        )
+        fig, ax = plt.subplots(figsize=(10, 8))
+        shap.waterfall_plot(expl, max_display=11, show=False)
+        plt.title("Impact des principales features (calcul local)")
+        st.pyplot(fig)
+        st.markdown("🔍 **Figure : SHAP Waterfall Plot des principales features**")
+    except Exception as e:
+        st.error(f"❌ Erreur calcul SHAP local : {e}")
 
 else:
-    st.error("❌ Les données SHAP n'ont pas pu être récupérées.")
+    # Appel à l'API
+    # api_shap_url = "http://127.0.0.1:5000/shap_values"
+    api_shap_url = "https://prediction-api.azurewebsites.net/shap_values"
+    try:
+        if "shap_values_data" not in st.session_state:
+            resp = requests.get(api_shap_url)
+            if resp.status_code == 200:
+                st.session_state.shap_values_data = resp.json()
+            else:
+                st.error(f"❌ Erreur API SHAP : {resp.status_code}")
+        shap_data = st.session_state.shap_values_data
+        shap_values = np.array(shap_data["shap_values"]).reshape(1, -1)
+        feature_names = shap_data["features_names"]
+        sample_values = np.array(shap_data["sample_values"]).reshape(1, -1)
+        base_values = shap_data["base_values"]
+        expl = shap.Explanation(
+            values=shap_values[0],
+            base_values=base_values,
+            data=sample_values[0],
+            feature_names=feature_names
+        )
+        fig, ax = plt.subplots(figsize=(10, 8))
+        shap.waterfall_plot(expl, max_display=11, show=False)
+        plt.title("Impact des principales features (via API)")
+        st.pyplot(fig)
+        st.markdown("🔍 **Figure : SHAP Waterfall Plot des principales features**")
+    except Exception as e:
+        st.error(f"❌ Impossible de récupérer les SHAP : {e}")
